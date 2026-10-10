@@ -71,6 +71,17 @@
   .fbox.sel span { background: #e8590c; }
   .fbox i { position: absolute; right: -11px; bottom: -11px; width: 22px; height: 22px; border-radius: 50%; background: #e8590c; border: 2px solid #fff; display: none; touch-action: none; }
   .fbox.sel i { display: block; }
+  #cropper { position: fixed; inset: 0; z-index: 25; background: #111; display: flex; flex-direction: column; }
+  #cropper .tools { display: flex; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px; }
+  #cropper .tools button { flex: 1; }
+  #cropArea { flex: 1; position: relative; overflow: hidden; touch-action: none; }
+  #cropImg { position: absolute; display: block; }
+  #cropRect { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.55); touch-action: none; cursor: move; }
+  #cropRect b { position: absolute; width: 30px; height: 30px; border: 4px solid #2fa84f; touch-action: none; }
+  #cropRect b[data-c="nw"] { left: -6px; top: -6px; border-right: 0; border-bottom: 0; }
+  #cropRect b[data-c="ne"] { right: -6px; top: -6px; border-left: 0; border-bottom: 0; }
+  #cropRect b[data-c="sw"] { left: -6px; bottom: -6px; border-right: 0; border-top: 0; }
+  #cropRect b[data-c="se"] { right: -6px; bottom: -6px; border-left: 0; border-top: 0; }
 </style>
 </head>
 <body>
@@ -114,8 +125,9 @@
     <div id="receiptPreview">
       <img id="receiptImg" alt="Απόδειξη">
       <div class="btns">
-        <button id="btnRotL">⟲ Περιστροφή</button>
-        <button id="btnRotR">⟳ Περιστροφή</button>
+        <button id="btnCrop">✂ Περικοπή</button>
+        <button id="btnRotL" aria-label="Περιστροφή αριστερά">⟲</button>
+        <button id="btnRotR" aria-label="Περιστροφή δεξιά">⟳</button>
         <button id="btnRemove">✕ Αφαίρεση</button>
       </div>
     </div>
@@ -180,6 +192,15 @@
   </div>
   <p class="note" style="margin:6px 12px 0">Σύρετε κάθε πλαίσιο στη θέση του. Η πορτοκαλί τελεία αλλάζει το μέγεθος. Ό,τι υπάρχει μέσα στο πλαίσιο στο πρότυπο καλύπτεται.</p>
   <div id="edScroll"><div id="edPage"><canvas id="edCanvas"></canvas></div></div>
+</div>
+
+<div id="cropper" class="hidden">
+  <div class="tools">
+    <button id="cropCancel">Άκυρο</button>
+    <button id="cropOrig">Αρχική</button>
+    <button id="cropApply" class="ok">✓ Εφαρμογή</button>
+  </div>
+  <div id="cropArea"><canvas id="cropImg"></canvas><div id="cropRect"><b data-c="nw"></b><b data-c="ne"></b><b data-c="sw"></b><b data-c="se"></b></div></div>
 </div>
 
 <div class="bar">
@@ -323,6 +344,7 @@
   // ---------- Receipt ----------
   let receipt = null;   // HTMLCanvasElement (already rotated)
   let receiptSrc = null; // unrotated canvas
+  let receiptOrig = null; // as loaded, before any crop
   let rotation = 0;
 
   $('btnCamera').onclick = () => $('camInput').click();
@@ -336,7 +358,7 @@
     try {
       if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) receiptSrc = await pdfToCanvas(file);
       else receiptSrc = await imageToCanvas(file);
-      rotation = 0; applyRotation();
+      receiptOrig = receiptSrc; rotation = 0; applyRotation();
       status('');
     } catch (err) {
       console.error(err);
@@ -448,7 +470,76 @@
   }
   $('btnRotL').onclick = () => { rotation -= 90; applyRotation(); };
   $('btnRotR').onclick = () => { rotation += 90; applyRotation(); };
-  $('btnRemove').onclick = () => { receiptSrc = null; applyRotation(); };
+  $('btnRemove').onclick = () => { receiptSrc = receiptOrig = null; applyRotation(); };
+
+  // ---------- Receipt crop ----------
+  // Crops the receipt as currently shown (with its rotation); the result becomes the new source.
+  let crop = null; // { x, y, w, h } in displayed (CSS) pixels, plus image placement
+  function cropOpen(src) {
+    $('cropper').classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => {
+      const area = $('cropArea').getBoundingClientRect(), pad = 24;
+      const k = Math.min((area.width - pad * 2) / src.width, (area.height - pad * 2) / src.height);
+      const w = src.width * k, h = src.height * k, x = (area.width - w) / 2, y = (area.height - h) / 2;
+      const cv = $('cropImg'), dpr = window.devicePixelRatio || 1;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height);
+      Object.assign(cv.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+      crop = { src, k, img: { x, y, w, h }, x, y, w, h };
+      cropPlace();
+    });
+  }
+  function cropPlace() {
+    Object.assign($('cropRect').style, { left: crop.x + 'px', top: crop.y + 'px', width: crop.w + 'px', height: crop.h + 'px' });
+  }
+  function cropClose() { $('cropper').classList.add('hidden'); document.body.style.overflow = ''; crop = null; }
+  (() => {
+    let start = null;
+    const MIN = 30;
+    const down = e => {
+      e.preventDefault(); e.stopPropagation();
+      start = { c: e.target.dataset.c || 'move', x: e.clientX, y: e.clientY, r: { x: crop.x, y: crop.y, w: crop.w, h: crop.h } };
+      e.target.setPointerCapture(e.pointerId);
+    };
+    const move = e => {
+      if (!start) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y, r = start.r, I = crop.img;
+      let { x, y, w, h } = r;
+      if (start.c === 'move') {
+        x = Math.min(Math.max(I.x, r.x + dx), I.x + I.w - r.w);
+        y = Math.min(Math.max(I.y, r.y + dy), I.y + I.h - r.h);
+      } else {
+        let x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.h;
+        if (start.c.includes('w')) x1 = Math.min(Math.max(I.x, x1 + dx), x2 - MIN);
+        if (start.c.includes('e')) x2 = Math.max(Math.min(I.x + I.w, x2 + dx), x1 + MIN);
+        if (start.c.includes('n')) y1 = Math.min(Math.max(I.y, y1 + dy), y2 - MIN);
+        if (start.c.includes('s')) y2 = Math.max(Math.min(I.y + I.h, y2 + dy), y1 + MIN);
+        x = x1; y = y1; w = x2 - x1; h = y2 - y1;
+      }
+      Object.assign(crop, { x, y, w, h }); cropPlace();
+    };
+    const up = () => { start = null; };
+    [$('cropRect'), ...$('cropRect').querySelectorAll('b')].forEach(el => {
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    });
+  })();
+  $('btnCrop').onclick = () => { if (receipt) cropOpen(receipt); };
+  $('cropCancel').onclick = cropClose;
+  $('cropOrig').onclick = () => {
+    if (!receiptOrig) return;
+    receiptSrc = receiptOrig; rotation = 0; applyRotation(); cropOpen(receipt);
+  };
+  $('cropApply').onclick = () => {
+    const { src, k, img } = crop;
+    const sx = Math.round((crop.x - img.x) / k), sy = Math.round((crop.y - img.y) / k);
+    const sw = Math.max(1, Math.round(crop.w / k)), sh = Math.max(1, Math.round(crop.h / k));
+    const out = document.createElement('canvas'); out.width = sw; out.height = sh;
+    out.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+    receiptSrc = out; rotation = 0; applyRotation();
+    cropClose();
+  };
 
   // ---------- Signature pad ----------
   // The signature is kept as an image (also in storage); the canvas is only used
