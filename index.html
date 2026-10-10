@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Εξοδολόγιο</title>
-<meta name="description" content="Δημιουργία μηνιαίου εξοδολογίου με απόδειξη και αποστολή με email">
+<title>Fuelpass</title>
+<meta name="description" content="Συμπλήρωση μηνιαίου εντύπου εξόδων από πρότυπο, με απόδειξη και αποστολή με email">
 <meta name="theme-color" content="#0b5fa5">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Εξοδολόγιο">
+<meta name="apple-mobile-web-app-title" content="Fuelpass">
 <style>
   :root {
     --bg: #f3f5f8; --card: #fff; --text: #1b2430; --muted: #5d6b7a;
@@ -57,7 +57,6 @@
     padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); z-index: 5; }
   .bar .inner { max-width: 560px; margin: 0 auto; display: flex; gap: 8px; } .bar button { flex: 1; }
   .status { min-height: 1.2em; font-size: 14px; color: var(--muted); text-align: center; margin: 6px 0 0; }
-  .email { font-family: ui-monospace, monospace; user-select: all; }
   .hidden { display: none !important; }
   #editor { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column; }
   #editor .tools { background: var(--card); border-bottom: 1px solid var(--line); padding: 8px 10px calc(8px); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-top: calc(8px + env(safe-area-inset-top)); }
@@ -76,7 +75,7 @@
 </head>
 <body>
 <header>
-  <h1>Εξοδολόγιο</h1>
+  <h1>Fuelpass</h1>
   <p>Κάρτα καυσίμων / ΜΜΜ</p>
 </header>
 
@@ -84,7 +83,17 @@
   <div class="warn" id="deadline"></div>
 
   <section class="card">
-    <h2><span class="step">1</span> Μήνας &amp; ποσό</h2>
+    <h2><span class="step">1</span> Πρότυπο</h2>
+    <div class="btns" style="margin-top:0">
+      <button class="primary" id="btnTemplate">📄 Επιλογή προτύπου</button>
+      <button id="btnLayout">📐 Θέσεις πεδίων</button>
+    </div>
+    <input type="file" id="templateInput" accept="image/*,application/pdf" class="hidden">
+    <p class="note" id="templateState"></p>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span> Μήνας &amp; ποσό</h2>
     <div class="row">
       <div><label for="month">Μήνας εξόδων</label><select id="month"></select></div>
       <div><label for="year">Έτος</label><select id="year"></select></div>
@@ -96,7 +105,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="step">2</span> Απόδειξη</h2>
+    <h2><span class="step">3</span> Απόδειξη</h2>
     <div class="btns" style="margin-top:0">
       <button class="primary" id="btnCamera">📷 Φωτογραφία</button>
       <button id="btnFile">📎 Εικόνα / PDF</button>
@@ -111,12 +120,12 @@
         <button id="btnRemove">✕ Αφαίρεση</button>
       </div>
     </div>
-    <p class="note" id="receiptNote">Η απόδειξη πρέπει να έχει εκδοθεί μέσα στον μήνα του εξοδολογίου.</p>
+    <p class="note" id="receiptNote">Η απόδειξη πρέπει να έχει εκδοθεί μέσα στον μήνα των εξόδων.</p>
   </section>
 
   <section class="card">
     <details id="profileBox">
-      <summary><span class="step">3</span> Τα στοιχεία μου <span id="profileState" style="font-weight:400;color:var(--muted)"></span></summary>
+      <summary><span class="step">4</span> Τα στοιχεία μου <span id="profileState" style="font-weight:400;color:var(--muted)"></span></summary>
       <label for="surname">Επώνυμο</label><input id="surname" autocomplete="family-name">
       <label for="name">Όνομα</label><input id="name" autocomplete="given-name">
       <label for="father">Όνομα πατέρα</label><input id="father">
@@ -127,7 +136,7 @@
   </section>
 
   <section class="card">
-    <h2><span class="step">4</span> Υπογραφή</h2>
+    <h2><span class="step">5</span> Υπογραφή</h2>
     <div class="sig-wrap">
       <canvas id="sig"></canvas>
       <div class="sig-hint" id="sigHint">Υπογράψτε εδώ με το δάχτυλο</div>
@@ -148,40 +157,14 @@
 
   <section class="card">
     <details id="settingsBox">
-      <summary>⚙ Ρυθμίσεις αποστολής <span id="settingsState" style="font-weight:400;color:var(--muted)"></span></summary>
+      <summary>⚙ Αποστολή email <span id="settingsState" style="font-weight:400;color:var(--muted)"></span></summary>
       <label for="cfgEmail">Email παραλήπτη</label><input id="cfgEmail" type="email" inputmode="email" autocomplete="off">
       <label for="cfgSubject">Θέμα email</label><input id="cfgSubject">
-      <label for="cfgCompany">Εταιρεία (εμφανίζεται ως «…της ΕΣΣΕ της <i>Εταιρείας</i>»)</label><input id="cfgCompany">
-      <label>Πρότυπο εξοδολογίου (προαιρετικό)</label>
-      <div class="btns" style="margin-top:0">
-        <button id="btnTemplate">📄 Επιλογή προτύπου</button>
-        <button id="btnTemplateRemove">✕ Χωρίς πρότυπο</button>
-      </div>
-      <input type="file" id="templateInput" accept="image/*,application/pdf" class="hidden">
-      <p class="note" id="templateState"></p>
-      <div class="btns"><button id="btnLayout">📐 Θέσεις πεδίων</button></div>
-      <label>Λογότυπο (μόνο χωρίς πρότυπο)</label>
-      <div class="btns" style="margin-top:0">
-        <button id="btnLogo">🖼 Επιλογή εικόνας</button>
-        <button id="btnLogoRemove">✕ Χωρίς λογότυπο</button>
-      </div>
-      <input type="file" id="logoInput" accept="image/*" class="hidden">
-      <img id="logoPreview" alt="" style="display:none;max-height:56px;margin-top:8px;background:#fff;border-radius:6px">
       <div class="btns"><button id="btnSetupLink">🔗 Αντιγραφή συνδέσμου ρυθμίσεων</button></div>
-      <p class="note">Αποθηκεύονται μόνο σε αυτή τη συσκευή. Ο σύνδεσμος ρυθμίσεων συμπληρώνει αυτόματα email, θέμα, εταιρεία και θέσεις πεδίων σε όποιον τον ανοίξει (όχι το πρότυπο και το λογότυπο).</p>
+      <p class="note">Αποθηκεύονται μόνο σε αυτή τη συσκευή. Ο σύνδεσμος ρυθμίσεων συμπληρώνει αυτόματα email, θέμα και θέσεις πεδίων σε όποιον τον ανοίξει (όχι το πρότυπο).</p>
     </details>
   </section>
 
-  <section class="card">
-    <h2>📧 Αποστολή</h2>
-    <p style="margin:0">Προς: <span class="email" id="sendTo"></span><br>Θέμα: <strong id="sendSubject"></strong></p>
-    <p class="note">Το «Αποστολή» ανοίγει το μενού κοινοποίησης με το PDF συνημμένο — επιλέξτε την εφαρμογή email.
-      Αν δεν υποστηρίζεται, κατεβάστε το PDF και πατήστε «Νέο email» για να το επισυνάψετε.</p>
-    <div class="btns">
-      <button id="btnMail">✉ Νέο email</button>
-      <button id="btnCopy">Αντιγραφή email</button>
-    </div>
-  </section>
 </main>
 
 <div id="editor" class="hidden">
@@ -225,9 +208,9 @@
   };
   const status = msg => { $('status').textContent = msg || ''; };
 
-  // ---------- Settings (recipient, subject, company, logo) ----------
-  // Defaults may be baked in by build-single.py; a "#setup=" link can prefill them.
-  const DEFAULTS = Object.assign({ email: '', subject: 'εξοδολόγιο', company: '', logo: '', template: '', boxes: null }, window.EXODOLOGIO_CONFIG || {});
+  // ---------- Settings (recipient, subject, template, field boxes) ----------
+  // A "#setup=" link can prefill email, subject and field boxes.
+  const DEFAULTS = { email: '', subject: '', template: '', boxes: null };
   const cfg = {};
   Object.keys(DEFAULTS).forEach(k => { cfg[k] = store.get('cfg.' + k, DEFAULTS[k]); });
   try {
@@ -235,23 +218,13 @@
     if (m) {
       const json = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
       const set = JSON.parse(json);
-      ['email', 'subject', 'company'].forEach(k => { if (typeof set[k] === 'string') { cfg[k] = set[k]; store.set('cfg.' + k, set[k]); } });
+      ['email', 'subject'].forEach(k => { if (typeof set[k] === 'string') { cfg[k] = set[k]; store.set('cfg.' + k, set[k]); } });
       if (set.boxes && typeof set.boxes === 'object') { cfg.boxes = set.boxes; store.set('cfg.boxes', set.boxes); }
       history.replaceState(null, '', location.pathname + location.search);
     }
   } catch {}
   const EMAIL = () => cfg.email.trim();
-  const SUBJECT = () => cfg.subject.trim() || DEFAULTS.subject || 'εξοδολόγιο';
-
-  // ---------- Logo ----------
-  const logo = new Image();
-  logo.onload = () => schedulePreview();
-  function setLogo(src) {
-    cfg.logo = src || ''; store.set('cfg.logo', cfg.logo);
-    if (cfg.logo) logo.src = cfg.logo; else logo.removeAttribute('src');
-    $('logoPreview').src = cfg.logo; $('logoPreview').style.display = cfg.logo ? 'block' : 'none';
-    schedulePreview();
-  }
+  const SUBJECT = () => cfg.subject.trim();
 
   // ---------- Template ----------
   let templateImg = new Image();
@@ -266,11 +239,11 @@
   }
   function updateTemplateState(extra = '') {
     $('templateState').textContent = (cfg.template
-      ? '✓ Χρησιμοποιείται το πρότυπό σας. Ελέγξτε τις «Θέσεις πεδίων» την πρώτη φορά.'
-      : 'Χωρίς πρότυπο χρησιμοποιείται η ενσωματωμένη φόρμα. Ανεβάστε το έντυπο σε PDF (ή φωτογραφία) — από Word: «Αποθήκευση ως PDF».') + extra;
+      ? '✓ Το πρότυπο είναι έτοιμο. Ελέγξτε τις «Θέσεις πεδίων» την πρώτη φορά.'
+      : 'Ανεβάστε το έντυπο σε PDF ή φωτογραφία (από Word: «Αποθήκευση ως PDF»). Οι τιμές γράφονται πάνω του.') + extra;
+    $('btnLayout').disabled = !cfg.template;
   }
   $('btnTemplate').onclick = () => $('templateInput').click();
-  $('btnTemplateRemove').onclick = () => setTemplate('');
   $('templateInput').onchange = async e => {
     const f = e.target.files[0]; e.target.value = '';
     if (!f) return;
@@ -287,30 +260,15 @@
   };
 
   function updateSettings() {
-    $('sendTo').textContent = EMAIL() || '(ορίστε στις Ρυθμίσεις)';
-    $('sendSubject').textContent = SUBJECT();
     $('settingsState').textContent = EMAIL() ? '✓' : '— συμπληρώστε';
   }
-  [['cfgEmail', 'email'], ['cfgSubject', 'subject'], ['cfgCompany', 'company']].forEach(([id, k]) => {
+  [['cfgEmail', 'email'], ['cfgSubject', 'subject']].forEach(([id, k]) => {
     $(id).value = cfg[k];
     $(id).addEventListener('input', () => { cfg[k] = $(id).value; store.set('cfg.' + k, cfg[k]); updateSettings(); schedulePreview(); });
   });
   if (!EMAIL()) $('settingsBox').open = true;
-  $('btnLogo').onclick = () => $('logoInput').click();
-  $('btnLogoRemove').onclick = () => setLogo('');
-  $('logoInput').onchange = async e => {
-    const f = e.target.files[0]; e.target.value = '';
-    if (!f) return;
-    try {
-      const c = await imageToCanvas(f);
-      const k = Math.min(1, 600 / c.width), out = document.createElement('canvas');
-      out.width = Math.round(c.width * k); out.height = Math.round(c.height * k);
-      out.getContext('2d').drawImage(c, 0, 0, out.width, out.height);
-      setLogo(out.toDataURL('image/jpeg', 0.9));
-    } catch { status('Δεν ήταν δυνατή η ανάγνωση της εικόνας.'); }
-  };
   $('btnSetupLink').onclick = async () => {
-    const json = JSON.stringify({ email: cfg.email.trim(), subject: cfg.subject.trim(), company: cfg.company.trim(), boxes: cfg.boxes || undefined });
+    const json = JSON.stringify({ email: cfg.email.trim(), subject: cfg.subject.trim(), boxes: cfg.boxes || undefined });
     const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const url = location.href.split('#')[0] + '#setup=' + b64;
     try { await navigator.clipboard.writeText(url); status('Ο σύνδεσμος ρυθμίσεων αντιγράφηκε.'); }
@@ -404,18 +362,7 @@
   }
 
   let pdfjsReady = null;
-  // Single-file build: pdf.js and its worker are embedded as text blocks and the
-  // worker runs on the main thread (no separate files to load).
-  function runInline(id) {
-    const s = document.createElement('script');
-    s.textContent = $(id).textContent;
-    document.head.appendChild(s);
-  }
   function loadPdfJs() {
-    if (!pdfjsReady && $('inline-pdfjs')) pdfjsReady = new Promise(resolve => {
-      runInline('inline-pdfjs-worker'); runInline('inline-pdfjs');
-      resolve(window.pdfjsLib);
-    });
     if (!pdfjsReady) pdfjsReady = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'vendor/pdf.min.js';
@@ -575,8 +522,8 @@
     ['amount', 'Ποσό'], ['signature', 'Υπογραφή']
   ];
   const LABELS = { surname: 'ΕΠΩΝΥΜΟ:', name: 'ΟΝΟΜΑ:', father: 'ΟΝΟΜΑ ΠΑΤΕΡΑ:', dept: 'ΤΜΗΜΑ:', dir: 'ΔΙΕΥΘΥΝΣΗ:' };
-  const LABEL_END = { surname: 327.1, name: 314.7, father: 355.9, dept: 314.5, dir: 329.8 }; // right edge of each label on the Word form
-  // Layout measured from the original Word form (A4, points).
+  // Default field boxes (A4, points); adjust per template with «Θέσεις πεδίων».
+  const LABEL_END = { surname: 327.1, name: 314.7, father: 355.9, dept: 314.5, dir: 329.8 };
   const LX = 269.5, LY = 252.5, LSTEP = 21.97;
   const T = { x: 253, w: 301.5, split: 436.5, r0: 373, r1: 400.5, r2: 482, r3: 576.5 };
   function defaultBoxes() {
@@ -614,44 +561,21 @@
     g.scale(scale, scale);
     g.fillStyle = '#fff'; g.fillRect(0, 0, PW, ph);
     g.fillStyle = '#000'; g.strokeStyle = '#000'; g.textBaseline = 'alphabetic';
-    const tpl = !!templateImg.naturalWidth;
-    if (tpl) g.drawImage(templateImg, 0, 0, PW, ph);
-    else drawBuiltIn(g);
-    drawFields(g, boxes(), tpl, opts.sample);
+    if (templateImg.naturalWidth) g.drawImage(templateImg, 0, 0, PW, ph);
+    else {
+      g.fillStyle = '#999'; g.font = F(16); g.textAlign = 'center';
+      g.fillText('Επιλέξτε πρότυπο (βήμα 1)', PW / 2, ph / 2);
+      g.textAlign = 'left'; g.fillStyle = '#000';
+    }
+    drawFields(g, boxes(), opts.sample);
     return c;
   }
 
-  // Static parts of the built-in form (used when no template is set).
-  function drawBuiltIn(g) {
-    if (logo.complete && logo.naturalWidth) g.drawImage(logo, 42, 40, 120, 120 * logo.naturalHeight / logo.naturalWidth);
-    g.font = F(11, true); g.fillText('ΑΠΟΔΕΙΞΗ', 42.6, 150);
-    g.fillText('ΕΞΟΔΟΛΟΓΙΟ ΜΗΝΟΣ:', LX, 150);
-    g.fillText('της', LX, 165);
-    g.fillText('παρ.3 αρθ.5', LX, 179.5);
-    const w5 = g.measureText('παρ.3 αρθ.5').width;
-    g.font = F(7, true); g.fillText('ο', LX + w5, 174.5);
-    const company = cfg.company.trim();
-    g.font = F(11, true); fitText(g, ' της ΕΣΣΕ' + (company ? ' της ' + company : ''), LX + w5 + 4, 179.5, 560 - (LX + w5 + 4), 11);
-    Object.keys(LABELS).forEach((k, i) => g.fillText(LABELS[k], LX, LY + i * LSTEP));
-
-    g.lineWidth = 0.6;
-    g.strokeRect(T.x, T.r0, T.w, T.r3 - T.r0);
-    [T.r1, T.r2].forEach(yy => { g.beginPath(); g.moveTo(T.x, yy); g.lineTo(T.x + T.w, yy); g.stroke(); });
-    g.beginPath(); g.moveTo(T.split, T.r0); g.lineTo(T.split, T.r3); g.stroke();
-    g.textAlign = 'center';
-    g.fillText('ΔΙΑΔΡΟΜΗ', (T.x + T.split) / 2, 391);
-    g.fillText('ΠΟΣΟ ΑΠΟΔΕΙΞΗΣ (€)', (T.split + T.x + T.w) / 2, 391);
-    g.font = F(11); g.fillText('(Υπογραφή)', (T.x + T.split) / 2, 505);
-    g.textAlign = 'left';
-    g.font = F(10); g.fillText('(1)  Αναγράφεται ο μήνας για τον οποίο υποβάλουμε το', LX, 749.5);
-    g.fillText('εξοδολόγιο', LX, 762);
-  }
-
-  // Values. On a template every box is first painted white, so any sample
-  // values already printed on the template (month, amount, receipt) disappear.
-  function drawFields(g, B, whiteout, sample) {
+  // Values. Every box is first painted white, so anything already printed
+  // there on the template (e.g. a sample month, amount or receipt) disappears.
+  function drawFields(g, B, sample) {
     const val = k => ($(k).value.trim() || (sample ? SAMPLE[k] || '' : ''));
-    const clear = b => { if (whiteout) { g.fillStyle = '#fff'; g.fillRect(b.x, b.y, b.w, b.h); g.fillStyle = '#000'; } };
+    const clear = b => { g.fillStyle = '#fff'; g.fillRect(b.x, b.y, b.w, b.h); g.fillStyle = '#000'; };
     const base = b => b.y + b.h / 2 + 3.7;
 
     // Receipt
@@ -661,7 +585,7 @@
       const w = receipt.width * s, h = receipt.height * s, x = b.x + (b.w - w) / 2;
       g.drawImage(receipt, x, b.y, w, h);
       g.lineWidth = 0.6; g.strokeRect(x, b.y, w, h);
-    } else if (!whiteout || sample) {
+    } else if (sample) {
       g.save(); g.setLineDash([4, 3]); g.strokeStyle = '#999'; g.lineWidth = 0.8;
       g.strokeRect(b.x, b.y, b.w, b.h); g.restore();
       g.fillStyle = '#999'; g.font = F(10); g.textAlign = 'center';
@@ -745,10 +669,13 @@
     if (!sigHas) missing.push('υπογραφή');
     return missing;
   }
+  // Latin file name (some browsers and mail apps mangle Greek file names).
+  const GR = { α:'a',β:'v',γ:'g',δ:'d',ε:'e',ζ:'z',η:'i',θ:'th',ι:'i',κ:'k',λ:'l',μ:'m',ν:'n',ξ:'x',ο:'o',π:'p',ρ:'r',σ:'s',ς:'s',τ:'t',υ:'y',φ:'f',χ:'ch',ψ:'ps',ω:'o' };
+  const latin = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ου/g, 'ou').replace(/./g, c => GR[c] ?? c);
   function fileName() {
     const m = +$('month').value, y = +$('year').value;
-    const sn = $('surname').value.trim().replace(/[^\p{L}\p{N}]+/gu, '_');
-    return `Εξοδολόγιο_${MONTHS_LC[m]}_${y}${sn ? '_' + sn : ''}.pdf`;
+    const sn = latin($('surname').value.trim()).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').toUpperCase();
+    return `Fuelpass_${y}-${String(m + 1).padStart(2, '0')}${sn ? '_' + sn : ''}.pdf`;
   }
   async function buildPdf() {
     await (document.fonts ? document.fonts.ready : Promise.resolve());
@@ -757,11 +684,16 @@
     const pdf = new jsPDF({ unit: 'pt', format: [PW, PH()], compress: true });
     pdf.addImage(page.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, PW, PH());
     const m = +$('month').value, y = +$('year').value;
-    pdf.setProperties({ title: `Εξοδολόγιο ${MONTHS_LC[m]} ${y}`, subject: SUBJECT() });
+    pdf.setProperties({ title: `${SUBJECT() || 'Fuelpass'} ${MONTHS_LC[m]} ${y}`, subject: SUBJECT() });
     const blob = pdf.output('blob');
     return new File([blob], fileName(), { type: 'application/pdf' });
   }
   function confirmMissing() {
+    if (!templateImg.naturalWidth) {
+      alert('Πρώτα επιλέξτε το πρότυπο (βήμα 1).');
+      $('btnTemplate').scrollIntoView({ block: 'center' });
+      return false;
+    }
     const miss = validate();
     if (!miss.length) return true;
     return confirm('Λείπουν: ' + miss.join(', ') + '.\nΣυνέχεια παρόλα αυτά;');
@@ -781,18 +713,23 @@
   };
 
   $('btnShare').onclick = async () => {
+    if (!EMAIL()) {
+      alert('Συμπληρώστε το email παραλήπτη στο «⚙ Αποστολή email».');
+      $('settingsBox').open = true; $('cfgEmail').scrollIntoView({ block: 'center' }); $('cfgEmail').focus();
+      return;
+    }
     if (!confirmMissing()) return;
     status('Δημιουργία PDF…');
     let file;
     try { file = await buildPdf(); } catch (e) { console.error(e); status('Σφάλμα δημιουργίας PDF.'); return; }
     const m = +$('month').value, y = +$('year').value;
     const fullName = `${$('surname').value.trim()} ${$('name').value.trim()}`.trim();
-    const body = `Σας αποστέλλω το εξοδολόγιο ${MONTHS_GEN[m]} ${y}.\n\n${fullName}`;
+    const body = `Σας αποστέλλω συνημμένα ${SUBJECT() || 'το αρχείο'} ${MONTHS_GEN[m]} ${y}.\n\n${fullName}`;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], title: SUBJECT(), text: body });
-        status(`Θυμηθείτε: Προς ${EMAIL()}, Θέμα «${SUBJECT()}».`);
         try { await navigator.clipboard.writeText(EMAIL()); } catch {}
+        await navigator.share({ files: [file], title: SUBJECT(), text: body });
+        status(`Στο email: Προς ${EMAIL()} (έχει αντιγραφεί)${SUBJECT() ? `, Θέμα «${SUBJECT()}»` : ''}.`);
         return;
       } catch (e) { if (e.name === 'AbortError') { status(''); return; } }
     }
@@ -804,16 +741,6 @@
   function openMail(body) {
     location.href = `mailto:${encodeURIComponent(EMAIL())}?subject=${encodeURIComponent(SUBJECT())}` + (body ? `&body=${encodeURIComponent(body)}` : '');
   }
-  $('btnMail').onclick = () => {
-    const m = +$('month').value, y = +$('year').value;
-    openMail(`Σας αποστέλλω το εξοδολόγιο ${MONTHS_GEN[m]} ${y}.\n\n${$('surname').value.trim()} ${$('name').value.trim()}`);
-  };
-  $('btnCopy').onclick = async () => {
-    try { await navigator.clipboard.writeText(EMAIL()); status('Το email αντιγράφηκε.'); }
-    catch { status(EMAIL()); }
-  };
-
-  setLogo(cfg.logo);
   setTemplate(cfg.template);
   updateSettings();
 
