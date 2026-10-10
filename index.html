@@ -725,15 +725,21 @@
     const m = +$('month').value, y = +$('year').value;
     const fullName = `${$('surname').value.trim()} ${$('name').value.trim()}`.trim();
     const body = `Σας αποστέλλω συνημμένα ${SUBJECT() || 'το αρχείο'} ${MONTHS_GEN[m]} ${y}.\n\n${fullName}`;
-    // Email only: save the PDF on the device, then open the mail app addressed to the
-    // configured recipient. (A web page cannot attach files to an email itself.)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        try { await navigator.clipboard.writeText(EMAIL()); } catch {}
+        await navigator.share({ files: [file], title: SUBJECT(), text: body });
+        status(`Στο email: Προς ${EMAIL()} (έχει αντιγραφεί)${SUBJECT() ? `, Θέμα «${SUBJECT()}»` : ''}.`);
+        return;
+      } catch (e) { if (e.name === 'AbortError') { status(''); return; } }
+    }
     download(file);
-    status(`Το PDF «${file.name}» αποθηκεύτηκε. Στο email που ανοίγει πατήστε 📎 και επισυνάψτε το από τις Λήψεις.`);
+    status('Το PDF κατέβηκε — επισυνάψτε το στο email που ανοίγει.');
     setTimeout(() => openMail(body), 600);
   };
 
   function openMail(body) {
-    location.href = `mailto:${EMAIL().replace(/[\s,;?&]/g, '')}?subject=${encodeURIComponent(SUBJECT())}` + (body ? `&body=${encodeURIComponent(body)}` : '');
+    location.href = `mailto:${encodeURIComponent(EMAIL())}?subject=${encodeURIComponent(SUBJECT())}` + (body ? `&body=${encodeURIComponent(body)}` : '');
   }
   setTemplate(cfg.template);
   updateSettings();
