@@ -1,6 +1,6 @@
-const CACHE = 'fuelpass-v2';
+const CACHE = 'fuelpass-v3';
 const ASSETS = [
-  './', 'index.html', 'manifest.webmanifest',
+  './', 'index.html', 'manifest.webmanifest', 'guide.html', 'Fuelpass-Odigos.pdf',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'vendor/jspdf.umd.min.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'
 ];
@@ -19,14 +19,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (e.request.mode === 'navigate') {
-    // Always revalidate the page with the server (skip the browser's HTTP cache) so
-    // updates show up on the next open. Offline or 404: keep using the cached copy.
-    e.respondWith(fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+    // Pages (the app and the in-app guide): always revalidate with the server, skipping the
+    // browser's HTTP cache, so updates show up on the next open. Offline or 404: use the cached copy.
+    const key = e.request.url.split(/[?#]/)[0];
+    const cached = () => caches.match(key).then(c => c || caches.match('index.html'));
+    e.respondWith(fetch(key, { cache: 'no-cache', credentials: 'same-origin' })
       .then(r => {
-        if (!r.ok) return caches.match('index.html').then(c => c || r);
-        const copy = r.clone(); caches.open(CACHE).then(c => c.put('index.html', copy)); return r;
+        if (!r.ok) return cached().then(c => c || r);
+        const copy = r.clone(); caches.open(CACHE).then(c => c.put(key, copy)); return r;
       })
-      .catch(() => caches.match('index.html')));
+      .catch(cached));
     return;
   }
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));

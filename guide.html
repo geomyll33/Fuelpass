@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuelpass — Οδηγός χρήσης</title>
+<style>
+  :root { --text: #1b2430; --muted: #5d6b7a; --line: #d7dde4; --accent: #0b5fa5; --soft: #eef5fc; --tip: #fff4e0; --tip-text: #7a4a00; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Carlito, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { color: var(--accent); font-size: 24px; margin: 4px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  h2 { color: var(--accent); font-size: 18px; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--soft); }
+  h3 { font-size: 15.5px; margin: 14px 0 4px; }
+  ol, ul { padding-left: 22px; margin: 6px 0; } li { margin: 4px 0; }
+  .ui { display: inline-block; background: var(--soft); border: 1px solid #c9dcf0; border-radius: 6px; padding: 0 6px; font-weight: 600; white-space: nowrap; }
+  .tip { background: var(--tip); color: var(--tip-text); border-radius: 10px; padding: 8px 12px; margin: 8px 0; }
+  .box { border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; margin: 10px 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .toc { columns: 2; padding-left: 20px; } .toc li { break-inside: avoid; }
+  a { color: var(--accent); }
+  .url { font-weight: 700; word-break: break-all; }
+  @media (max-width: 560px) { .cols { grid-template-columns: 1fr; } .toc { columns: 1; } }
+  @media print {
+    @page { size: A4; margin: 14mm 15mm; }
+    body { font-size: 11pt; font-family: Carlito, Calibri, Arial, sans-serif; }
+    main { max-width: none; padding: 0; }
+    h2 { break-after: avoid; } .box, .tip, li { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fuelpass — Οδηγός χρήσης</h1>
+  <p class="sub">Μηνιαίο έντυπο εξόδων (κάρτα καυσίμων / ΜΜΜ) από το κινητό: πρότυπο, απόδειξη, υπογραφή, αποστολή με email.</p>
+
+  <ol class="toc">
+    <li><a href="#install">Εγκατάσταση</a></li>
+    <li><a href="#first">Την πρώτη φορά</a></li>
+    <li><a href="#monthly">Κάθε μήνα</a></li>
+    <li><a href="#send">Αποστολή</a></li>
+    <li><a href="#updates">Ενημερώσεις</a></li>
+    <li><a href="#faq">Συχνά προβλήματα</a></li>
+  </ol>
+
+  <h2 id="install">1. Εγκατάσταση</h2>
+  <p>Ανοίξτε στο κινητό: <span class="url">https://geomyll33.github.io/Fuelpass/</span></p>
+  <div class="cols">
+    <div class="box"><h3>📱 iPhone (Safari)</h3><ol>
+      <li>Ανοίξτε τον σύνδεσμο στο <b>Safari</b>.</li>
+      <li>Πατήστε <b>Κοινοποίηση</b> (τετράγωνο με βέλος).</li>
+      <li><b>Προσθήκη στην οθόνη Αφετηρίας</b> → <b>Προσθήκη</b>.</li></ol></div>
+    <div class="box"><h3>🤖 Android (Chrome)</h3><ol>
+      <li>Ανοίξτε τον σύνδεσμο στο <b>Chrome</b>.</li>
+      <li>Πατήστε το μενού <b>⋮</b> πάνω δεξιά.</li>
+      <li><b>Εγκατάσταση εφαρμογής</b> ή <b>Προσθήκη στην αρχική οθόνη</b>.</li></ol></div>
+  </div>
+  <p>Εμφανίζεται εικονίδιο <b>Fuelpass</b>. Μετά την πρώτη φόρτωση η εφαρμογή λειτουργεί και χωρίς internet.</p>
+
+  <h2 id="first">2. Την πρώτη φορά</h2>
+  <p>Αν σας έστειλαν <b>σύνδεσμο ρυθμίσεων</b>, ανοίξτε τον πρώτα: συμπληρώνει αυτόματα email παραλήπτη, θέμα και θέσεις πεδίων.</p>
+
+  <h3>Βήμα 1 — Πρότυπο</h3>
+  <ol>
+    <li>Πατήστε <span class="ui">📄 Επιλογή προτύπου</span> και επιλέξτε το έντυπο σε <b>PDF</b> ή <b>φωτογραφία</b>.
+      Αν το έχετε σε Word, αποθηκεύστε το πρώτα ως PDF («Αποθήκευση ως PDF»).</li>
+    <li>Πατήστε <span class="ui">📐 Θέσεις πεδίων</span> και ελέγξτε ότι κάθε πλαίσιο (Απόδειξη, Μήνας, Επώνυμο, Όνομα,
+      Όνομα πατέρα, Τμήμα, Διεύθυνση, Διαδρομή, Ποσό, Υπογραφή) βρίσκεται στη σωστή θέση:
+      <ul>
+        <li>σύρετε το πλαίσιο για να το μετακινήσετε· η <b>πορτοκαλί τελεία</b> αλλάζει το μέγεθος·</li>
+        <li>για ακρίβεια: διαλέξτε πεδίο από τη λίστα και χρησιμοποιήστε <span class="ui">← ↑ ↓ →</span>,
+          <span class="ui">− μέγεθος</span> / <span class="ui">+ μέγεθος</span> και <span class="ui">🔍+</span> για μεγέθυνση·</li>
+        <li><span class="ui">Επαναφορά</span> επιστρέφει τις αρχικές θέσεις· <span class="ui">✓ Τέλος</span> κλείνει.</li>
+      </ul></li>
+  </ol>
+  <div class="tip">💡 Ό,τι υπάρχει μέσα σε ένα πλαίσιο στο πρότυπο <b>καλύπτεται με λευκό</b>. Έτσι μπορείτε να ανεβάσετε ακόμα
+    και ένα παλιό συμπληρωμένο έντυπο: η παλιά απόδειξη, ο μήνας και το ποσό σβήνονται και γράφονται τα νέα.</div>
+
+  <h3>Βήμα 4 — Τα στοιχεία μου</h3>
+  <p>Συμπληρώστε Επώνυμο, Όνομα, Όνομα πατέρα, Τμήμα, Διεύθυνση. Αποθηκεύονται στη συσκευή.</p>
+
+  <h3>Βήμα 5 — Υπογραφή</h3>
+  <p>Υπογράψτε με το δάχτυλο. Αποθηκεύεται για τους επόμενους μήνες και το πλαίσιο μένει κλειστό (✓), ώστε να μην
+    εμποδίζει το σκρολάρισμα. Για νέα υπογραφή ανοίξτε το και πατήστε <span class="ui">Καθαρισμός</span>.</p>
+
+  <h3>⚙ Αποστολή email</h3>
+  <p>Συμπληρώστε <b>Email παραλήπτη</b> και <b>Θέμα email</b>. Με <span class="ui">🔗 Αντιγραφή συνδέσμου ρυθμίσεων</span>
+    στέλνετε σε συναδέλφους έναν σύνδεσμο που τους τα συμπληρώνει αυτόματα, μαζί με τις θέσεις πεδίων
+    (το πρότυπο το ανεβάζει ο καθένας μόνος του).</p>
+
+  <h2 id="monthly">3. Κάθε μήνα</h2>
+  <ol>
+    <li><b>Μήνας &amp; ποσό:</b> προτείνεται αυτόματα ο προηγούμενος μήνας. Κάτω από τον μήνα φαίνεται η
+      <b>προθεσμία αποστολής</b> (π.χ. «Αποστολή 1–10 Νοεμβρίου με απόδειξη Οκτωβρίου»). Γράψτε το <b>ποσό</b> της απόδειξης·
+      η <b>διαδρομή</b> είναι ήδη συμπληρωμένη και αλλάζει αν χρειάζεται.</li>
+    <li><b>Απόδειξη:</b> <span class="ui">📷 Φωτογραφία</span> για λήψη με την κάμερα ή <span class="ui">📎 Εικόνα / PDF</span> για αρχείο.
+      Η απόδειξη πρέπει να έχει ημερομηνία του ίδιου μήνα.
+      <ul>
+        <li><span class="ui">✂ Περικοπή</span>: σύρετε τις <b>πράσινες γωνίες</b> (ή το εσωτερικό του πλαισίου) και πατήστε
+          <span class="ui">✓ Εφαρμογή</span>. <span class="ui">Αρχική</span> επαναφέρει την εικόνα όπως ανέβηκε.</li>
+        <li><span class="ui">⟲</span> <span class="ui">⟳</span> περιστροφή, <span class="ui">✕ Αφαίρεση</span> για άλλη απόδειξη.</li>
+      </ul></li>
+    <li><b>👁 Προεπισκόπηση</b> (προαιρετικά): δείτε το έντυπο όπως θα σταλεί.</li>
+    <li><b>📤 Αποστολή</b> (δείτε παρακάτω).</li>
+  </ol>
+
+  <h2 id="send">4. Αποστολή</h2>
+  <ol>
+    <li>Πατήστε <span class="ui">📤 Αποστολή</span>. Το email παραλήπτη <b>αντιγράφεται</b> αυτόματα.</li>
+    <li>Ανοίγει το μενού κοινοποίησης με το <b>PDF ήδη συνημμένο</b> — επιλέξτε την εφαρμογή email (Gmail, Outlook…).</li>
+    <li>Στο πεδίο <b>Προς</b> κάντε <b>Επικόλληση</b>, ελέγξτε το <b>Θέμα</b> και στείλτε.</li>
+  </ol>
+  <p><span class="ui">⬇ PDF</span> απλώς αποθηκεύει το αρχείο στο κινητό (π.χ. <i>Fuelpass_2026-10_EPONYMO.pdf</i>).</p>
+  <div class="tip">💡 Αν το κινητό δεν υποστηρίζει κοινοποίηση αρχείων, το PDF αποθηκεύεται και ανοίγει νέο email με έτοιμο
+    παραλήπτη και θέμα — επισυνάψτε εκεί το PDF (📎) από τις Λήψεις.</div>
+
+  <h2 id="updates">5. Ενημερώσεις</h2>
+  <p>Η έκδοση φαίνεται στην κεφαλίδα (π.χ. «v2026.10.10-2»). Όταν υπάρχει νέα, εμφανίζεται
+    <span class="ui">Νέα έκδοση διαθέσιμη — Ανανέωση</span>. Αλλιώς κλείστε εντελώς την εφαρμογή και ανοίξτε την ξανά με internet.
+    Τα αποθηκευμένα στοιχεία δεν χάνονται.</p>
+
+  <h2 id="faq">6. Συχνά προβλήματα</h2>
+  <ul>
+    <li><b>«Πρώτα επιλέξτε το πρότυπο»:</b> ανεβάστε το έντυπο στο βήμα 1.</li>
+    <li><b>Οι τιμές δεν πέφτουν στη σωστή θέση:</b> <span class="ui">📐 Θέσεις πεδίων</span> και μετακινήστε τα πλαίσια.</li>
+    <li><b>Δεν αποθηκεύεται το πρότυπο</b> («δεν χωράει στη μνήμη»): χρησιμοποιήστε μικρότερο αρχείο ή φωτογραφία του εντύπου.</li>
+    <li><b>Δεν βλέπω «Εγκατάσταση εφαρμογής»:</b> ανοίξτε τον σύνδεσμο σε Chrome (Android) ή Safari (iPhone), όχι μέσα από email ή Viber.</li>
+    <li><b>Η υπογραφή εμποδίζει το σκρολάρισμα:</b> κλείστε το πλαίσιο «5 Υπογραφή» — η υπογραφή μένει αποθηκευμένη.</li>
+    <li><b>Δεν βλέπω μια νέα αλλαγή:</b> δείτε «Ενημερώσεις».</li>
+  </ul>
+
+  <h2>🔒 Ιδιωτικότητα</h2>
+  <p>Πρότυπο, στοιχεία, υπογραφή και αποδείξεις μένουν <b>μόνο στη συσκευή σας</b>. Η εφαρμογή δεν έχει server και δεν στέλνει
+    τίποτα πουθενά· αποστέλλεται μόνο το email που στέλνετε εσείς.</p>
+</main>
+</body>
+</html>
