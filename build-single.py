@@ -3,12 +3,15 @@
 
 Usage: python3 build-single.py   ->  writes Εξοδολόγιο.html
 
-If config.local.json exists (git-ignored), its email / subject / company and
-logo (path to an image) are baked in as the app's default settings.
+If config.local.json exists (git-ignored), its email / subject / company,
+logo (image path), template (PDF or image path; PDFs need poppler's pdftoppm)
+and boxes are baked in as the app's default settings.
 """
 import base64
 import json
 import pathlib
+import subprocess
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent
 OUT = ROOT / 'Εξοδολόγιο.html'
@@ -43,6 +46,15 @@ cfg = json.loads(cfg_path.read_text(encoding='utf-8')) if cfg_path.exists() else
 if cfg.get('logo'):
     ext = cfg['logo'].rsplit('.', 1)[-1].lower()
     cfg['logo'] = data_uri(cfg['logo'], 'image/png' if ext == 'png' else 'image/jpeg')
+if cfg.get('template'):
+    src = ROOT / cfg['template']
+    if src.suffix.lower() == '.pdf':
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(['pdftoppm', '-f', '1', '-l', '1', '-scale-to-x', '1400', '-scale-to-y', '-1',
+                            '-jpeg', '-jpegopt', 'quality=85', '-singlefile', str(src), f'{tmp}/t'], check=True)
+            cfg['template'] = 'data:image/jpeg;base64,' + base64.b64encode(pathlib.Path(f'{tmp}/t.jpg').read_bytes()).decode()
+    else:
+        cfg['template'] = data_uri(cfg['template'], 'image/png' if src.suffix.lower() == '.png' else 'image/jpeg')
 html = replace_once(html, "if ('serviceWorker' in navigator && location.protocol !== 'file:')",
                     "if (false)")
 
