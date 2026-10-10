@@ -1,0 +1,5 @@
+# Private, organisation-specific files (never committed)
+private/
+config.local.json
+Εξοδολόγιο*.html
+*.pdf

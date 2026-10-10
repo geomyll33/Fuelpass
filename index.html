@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Εξοδολόγιο</title>
+<meta name="description" content="Δημιουργία μηνιαίου εξοδολογίου με απόδειξη και αποστολή με email">
+<meta name="theme-color" content="#0b5fa5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Εξοδολόγιο">
+<style>
+  :root {
+    --bg: #f3f5f8; --card: #fff; --text: #1b2430; --muted: #5d6b7a;
+    --line: #d7dde4; --accent: #0b5fa5; --accent-2: #2fa84f; --warn: #b26a00; --warn-bg: #fff4e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11161c; --card: #1a2129; --text: #e7edf3; --muted: #9aa8b6;
+      --line: #2e3945; --accent: #4f9be0; --accent-2: #45c06a; --warn: #ffb648; --warn-bg: #3a2c10; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: env(safe-area-inset-top) 0 calc(90px + env(safe-area-inset-bottom)); }
+  header { background: var(--accent); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 5; }
+  header h1 { margin: 0; font-size: 19px; }
+  header p { margin: 2px 0 0; font-size: 13px; opacity: .9; }
+  main { max-width: 560px; margin: 0 auto; padding: 12px 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .step { background: var(--accent); color: #fff; border-radius: 50%; width: 22px; height: 22px;
+    display: inline-grid; place-items: center; font-size: 13px; flex: none; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 3px; }
+  input, select, textarea { width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: flex; gap: 10px; } .row > * { flex: 1; min-width: 0; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 11px 14px; cursor: pointer;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line); }
+  button.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
+  button.ok { background: var(--accent-2); color: #fff; border-color: transparent; font-weight: 600; }
+  button:disabled { opacity: .5; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; } .btns button { flex: 1; }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .warn { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 12px; }
+  .warn strong { color: inherit; }
+  #receiptPreview { display: none; margin-top: 10px; text-align: center; }
+  #receiptPreview img { max-width: 100%; max-height: 320px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .sig-wrap { position: relative; border: 1px dashed var(--line); border-radius: 10px; background: #fff; touch-action: none; }
+  #sig { width: 100%; height: 160px; display: block; }
+  .sig-hint { position: absolute; inset: 0; display: grid; place-items: center; color: #9aa; pointer-events: none; font-size: 14px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+  #preview { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; display: block; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); z-index: 5; }
+  .bar .inner { max-width: 560px; margin: 0 auto; display: flex; gap: 8px; } .bar button { flex: 1; }
+  .status { min-height: 1.2em; font-size: 14px; color: var(--muted); text-align: center; margin: 6px 0 0; }
+  .email { font-family: ui-monospace, monospace; user-select: all; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Εξοδολόγιο</h1>
+  <p>Κάρτα καυσίμων / ΜΜΜ</p>
+</header>
+
+<main>
+  <div class="warn" id="deadline"></div>
+
+  <section class="card">
+    <h2><span class="step">1</span> Μήνας &amp; ποσό</h2>
+    <div class="row">
+      <div><label for="month">Μήνας εξόδων</label><select id="month"></select></div>
+      <div><label for="year">Έτος</label><select id="year"></select></div>
+    </div>
+    <label for="amount">Ποσό απόδειξης (€)</label>
+    <input id="amount" inputmode="decimal" placeholder="π.χ. 40,00">
+    <label for="route">Διαδρομή</label>
+    <textarea id="route" rows="2"></textarea>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span> Απόδειξη</h2>
+    <div class="btns" style="margin-top:0">
+      <button class="primary" id="btnCamera">📷 Φωτογραφία</button>
+      <button id="btnFile">📎 Εικόνα / PDF</button>
+    </div>
+    <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="fileInput" accept="image/*,application/pdf" class="hidden">
+    <div id="receiptPreview">
+      <img id="receiptImg" alt="Απόδειξη">
+      <div class="btns">
+        <button id="btnRotL">⟲ Περιστροφή</button>
+        <button id="btnRotR">⟳ Περιστροφή</button>
+        <button id="btnRemove">✕ Αφαίρεση</button>
+      </div>
+    </div>
+    <p class="note" id="receiptNote">Η απόδειξη πρέπει να έχει εκδοθεί μέσα στον μήνα του εξοδολογίου.</p>
+  </section>
+
+  <section class="card">
+    <details id="profileBox">
+      <summary><span class="step">3</span> Τα στοιχεία μου <span id="profileState" style="font-weight:400;color:var(--muted)"></span></summary>
+      <label for="surname">Επώνυμο</label><input id="surname" autocomplete="family-name">
+      <label for="name">Όνομα</label><input id="name" autocomplete="given-name">
+      <label for="father">Όνομα πατέρα</label><input id="father">
+      <label for="dept">Τμήμα</label><input id="dept">
+      <label for="dir">Διεύθυνση</label><input id="dir">
+      <p class="note">Αποθηκεύονται μόνο σε αυτή τη συσκευή.</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">4</span> Υπογραφή</h2>
+    <div class="sig-wrap">
+      <canvas id="sig"></canvas>
+      <div class="sig-hint" id="sigHint">Υπογράψτε εδώ με το δάχτυλο</div>
+    </div>
+    <div class="btns">
+      <button id="btnSigClear">Καθαρισμός</button>
+    </div>
+    <p class="note">Η υπογραφή αποθηκεύεται για τους επόμενους μήνες.</p>
+  </section>
+
+  <section class="card">
+    <details id="previewBox">
+      <summary>👁 Προεπισκόπηση</summary>
+      <p class="note">Ενημερώνεται αυτόματα.</p>
+      <canvas id="preview"></canvas>
+    </details>
+  </section>
+
+  <section class="card">
+    <details id="settingsBox">
+      <summary>⚙ Ρυθμίσεις αποστολής <span id="settingsState" style="font-weight:400;color:var(--muted)"></span></summary>
+      <label for="cfgEmail">Email παραλήπτη</label><input id="cfgEmail" type="email" inputmode="email" autocomplete="off">
+      <label for="cfgSubject">Θέμα email</label><input id="cfgSubject">
+      <label for="cfgCompany">Εταιρεία (εμφανίζεται ως «…της ΕΣΣΕ της <i>Εταιρείας</i>»)</label><input id="cfgCompany">
+      <label>Λογότυπο (πάνω αριστερά στο εξοδολόγιο)</label>
+      <div class="btns" style="margin-top:0">
+        <button id="btnLogo">🖼 Επιλογή εικόνας</button>
+        <button id="btnLogoRemove">✕ Χωρίς λογότυπο</button>
+      </div>
+      <input type="file" id="logoInput" accept="image/*" class="hidden">
+      <img id="logoPreview" alt="" style="display:none;max-height:56px;margin-top:8px;background:#fff;border-radius:6px">
+      <div class="btns"><button id="btnSetupLink">🔗 Αντιγραφή συνδέσμου ρυθμίσεων</button></div>
+      <p class="note">Αποθηκεύονται μόνο σε αυτή τη συσκευή. Ο σύνδεσμος ρυθμίσεων συμπληρώνει αυτόματα email, θέμα και εταιρεία σε όποιον τον ανοίξει (χωρίς το λογότυπο).</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>📧 Αποστολή</h2>
+    <p style="margin:0">Προς: <span class="email" id="sendTo"></span><br>Θέμα: <strong id="sendSubject"></strong></p>
+    <p class="note">Το «Αποστολή» ανοίγει το μενού κοινοποίησης με το PDF συνημμένο — επιλέξτε την εφαρμογή email.
+      Αν δεν υποστηρίζεται, κατεβάστε το PDF και πατήστε «Νέο email» για να το επισυνάψετε.</p>
+    <div class="btns">
+      <button id="btnMail">✉ Νέο email</button>
+      <button id="btnCopy">Αντιγραφή email</button>
+    </div>
+  </section>
+</main>
+
+<div class="bar">
+  <div class="inner">
+    <button id="btnDownload">⬇ PDF</button>
+    <button class="ok" id="btnShare">📤 Αποστολή</button>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script>
+(() => {
+  'use strict';
+  const DEFAULT_ROUTE = 'Μετακινήσεις στις εγκαταστάσεις της εταιρείας';
+  const MONTHS = ['ΙΑΝΟΥΑΡΙΟΣ','ΦΕΒΡΟΥΑΡΙΟΣ','ΜΑΡΤΙΟΣ','ΑΠΡΙΛΙΟΣ','ΜΑΙΟΣ','ΙΟΥΝΙΟΣ',
+    'ΙΟΥΛΙΟΣ','ΑΥΓΟΥΣΤΟΣ','ΣΕΠΤΕΜΒΡΙΟΣ','ΟΚΤΩΒΡΙΟΣ','ΝΟΕΜΒΡΙΟΣ','ΔΕΚΕΜΒΡΙΟΣ'];
+  const MONTHS_LC = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος',
+    'Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+  const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου',
+    'Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
+
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('exodologio.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('exodologio.' + k, JSON.stringify(v)); } catch {} }
+  };
+  const status = msg => { $('status').textContent = msg || ''; };
+
+  // ---------- Settings (recipient, subject, company, logo) ----------
+  // Defaults may be baked in by build-single.py; a "#setup=" link can prefill them.
+  const DEFAULTS = Object.assign({ email: '', subject: 'εξοδολόγιο', company: '', logo: '' }, window.EXODOLOGIO_CONFIG || {});
+  const cfg = {};
+  Object.keys(DEFAULTS).forEach(k => { cfg[k] = store.get('cfg.' + k, DEFAULTS[k]); });
+  try {
+    const m = location.hash.match(/^#setup=(.+)$/);
+    if (m) {
+      const json = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
+      const set = JSON.parse(json);
+      ['email', 'subject', 'company'].forEach(k => { if (typeof set[k] === 'string') { cfg[k] = set[k]; store.set('cfg.' + k, set[k]); } });
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  } catch {}
+  const EMAIL = () => cfg.email.trim();
+  const SUBJECT = () => cfg.subject.trim() || DEFAULTS.subject || 'εξοδολόγιο';
+
+  // ---------- Logo ----------
+  const logo = new Image();
+  logo.onload = () => schedulePreview();
+  function setLogo(src) {
+    cfg.logo = src || ''; store.set('cfg.logo', cfg.logo);
+    if (cfg.logo) logo.src = cfg.logo; else logo.removeAttribute('src');
+    $('logoPreview').src = cfg.logo; $('logoPreview').style.display = cfg.logo ? 'block' : 'none';
+    schedulePreview();
+  }
+
+  function updateSettings() {
+    $('sendTo').textContent = EMAIL() || '(ορίστε στις Ρυθμίσεις)';
+    $('sendSubject').textContent = SUBJECT();
+    $('settingsState').textContent = EMAIL() ? '✓' : '— συμπληρώστε';
+  }
+  [['cfgEmail', 'email'], ['cfgSubject', 'subject'], ['cfgCompany', 'company']].forEach(([id, k]) => {
+    $(id).value = cfg[k];
+    $(id).addEventListener('input', () => { cfg[k] = $(id).value; store.set('cfg.' + k, cfg[k]); updateSettings(); schedulePreview(); });
+  });
+  if (!EMAIL()) $('settingsBox').open = true;
+  $('btnLogo').onclick = () => $('logoInput').click();
+  $('btnLogoRemove').onclick = () => setLogo('');
+  $('logoInput').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const c = await imageToCanvas(f);
+      const k = Math.min(1, 600 / c.width), out = document.createElement('canvas');
+      out.width = Math.round(c.width * k); out.height = Math.round(c.height * k);
+      out.getContext('2d').drawImage(c, 0, 0, out.width, out.height);
+      setLogo(out.toDataURL('image/jpeg', 0.9));
+    } catch { status('Δεν ήταν δυνατή η ανάγνωση της εικόνας.'); }
+  };
+  $('btnSetupLink').onclick = async () => {
+    const json = JSON.stringify({ email: cfg.email.trim(), subject: cfg.subject.trim(), company: cfg.company.trim() });
+    const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const url = location.href.split('#')[0] + '#setup=' + b64;
+    try { await navigator.clipboard.writeText(url); status('Ο σύνδεσμος ρυθμίσεων αντιγράφηκε.'); }
+    catch { prompt('Αντιγράψτε τον σύνδεσμο:', url); }
+  };
+
+  // ---------- Month / year ----------
+  const now = new Date();
+  // Default: previous month (the one being submitted during days 1–10).
+  const def = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  MONTHS_LC.forEach((m, i) => $('month').add(new Option(m, i)));
+  for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 1; y++) $('year').add(new Option(y, y));
+  $('month').value = def.getMonth();
+  $('year').value = def.getFullYear();
+
+  function updateDeadline() {
+    const m = +$('month').value, y = +$('year').value;
+    const next = new Date(y, m + 1, 1);
+    const due = new Date(y, m + 1, 10, 23, 59);
+    let txt = `Αποστολή <strong>1–10 ${MONTHS_GEN[next.getMonth()]} ${next.getFullYear()}</strong> με απόδειξη ${MONTHS_GEN[m]} ${y}.`;
+    if (now < next) txt += ' (Ο μήνας δεν έχει τελειώσει ακόμη.)';
+    else if (now > due) txt += ' ⚠ Η προθεσμία έχει περάσει.';
+    $('deadline').innerHTML = txt;
+    $('receiptNote').textContent = `Η απόδειξη πρέπει να έχει ημερομηνία ${MONTHS_GEN[m]} ${y}.`;
+  }
+
+  // ---------- Form fields persistence ----------
+  const PROFILE = ['surname','name','father','dept','dir'];
+  PROFILE.forEach(k => { $(k).value = store.get(k, ''); });
+  $('amount').value = store.get('amount', '');
+  $('route').value = store.get('route', DEFAULT_ROUTE);
+  function profileComplete() { return PROFILE.every(k => $(k).value.trim()); }
+  function updateProfileState() {
+    $('profileState').textContent = profileComplete() ? '✓' : '— συμπληρώστε';
+  }
+  if (!profileComplete()) $('profileBox').open = true;
+  updateProfileState();
+
+  [...PROFILE, 'amount', 'route'].forEach(k => $(k).addEventListener('input', () => {
+    store.set(k, $(k).value); updateProfileState(); schedulePreview();
+  }));
+  ['month','year'].forEach(k => $(k).addEventListener('change', () => { updateDeadline(); schedulePreview(); }));
+  updateDeadline();
+
+  function fmtAmount(v) {
+    const n = parseFloat(String(v).replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
+    if (!isFinite(n)) return String(v).trim();
+    return n.toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // ---------- Receipt ----------
+  let receipt = null;   // HTMLCanvasElement (already rotated)
+  let receiptSrc = null; // unrotated canvas
+  let rotation = 0;
+
+  $('btnCamera').onclick = () => $('camInput').click();
+  $('btnFile').onclick = () => $('fileInput').click();
+  $('camInput').onchange = e => loadFile(e.target.files[0], e.target);
+  $('fileInput').onchange = e => loadFile(e.target.files[0], e.target);
+
+  async function loadFile(file, input) {
+    if (!file) return;
+    status('Φόρτωση απόδειξης…');
+    try {
+      if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) receiptSrc = await pdfToCanvas(file);
+      else receiptSrc = await imageToCanvas(file);
+      rotation = 0; applyRotation();
+      status('');
+    } catch (err) {
+      console.error(err);
+      status('Δεν ήταν δυνατή η ανάγνωση του αρχείου.');
+    }
+    input.value = '';
+  }
+
+  function imageToCanvas(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const max = 2000, s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url); resolve(c);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image')); };
+      img.src = url;
+    });
+  }
+
+  let pdfjsReady = null;
+  // Single-file build: pdf.js and its worker are embedded as text blocks and the
+  // worker runs on the main thread (no separate files to load).
+  function runInline(id) {
+    const s = document.createElement('script');
+    s.textContent = $(id).textContent;
+    document.head.appendChild(s);
+  }
+  function loadPdfJs() {
+    if (!pdfjsReady && $('inline-pdfjs')) pdfjsReady = new Promise(resolve => {
+      runInline('inline-pdfjs-worker'); runInline('inline-pdfjs');
+      resolve(window.pdfjsLib);
+    });
+    if (!pdfjsReady) pdfjsReady = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'vendor/pdf.min.js';
+      s.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js'; resolve(pdfjsLib); };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return pdfjsReady;
+  }
+
+  async function pdfToCanvas(file) {
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const pages = Math.min(doc.numPages, 4);
+    const rendered = [];
+    for (let i = 1; i <= pages; i++) {
+      const page = await doc.getPage(i);
+      const base = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: Math.min(3, 1600 / Math.max(base.width, base.height)) });
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      rendered.push(c);
+    }
+    if (rendered.length === 1) return trimWhite(rendered[0]);
+    // Multi-page receipt: stack pages vertically.
+    const w = Math.max(...rendered.map(c => c.width)), h = rendered.reduce((a, c) => a + c.height, 0);
+    const out = document.createElement('canvas'); out.width = w; out.height = h;
+    const ctx = out.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    let y = 0; rendered.forEach(c => { ctx.drawImage(c, 0, y); y += c.height; });
+    return trimWhite(out);
+  }
+
+  // Crop surrounding white margins (useful for PDF receipts printed on a full A4 page).
+  function trimWhite(c) {
+    const ctx = c.getContext('2d'), { width: w, height: h } = c;
+    const d = ctx.getImageData(0, 0, w, h).data;
+    let top = h, left = w, right = -1, bottom = -1;
+    for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+      const i = (y * w + x) * 4;
+      if (d[i] < 235 || d[i + 1] < 235 || d[i + 2] < 235) {
+        if (y < top) top = y; if (y > bottom) bottom = y; if (x < left) left = x; if (x > right) right = x;
+      }
+    }
+    if (right < 0) return c;
+    const pad = 12;
+    left = Math.max(0, left - pad); top = Math.max(0, top - pad);
+    right = Math.min(w - 1, right + pad); bottom = Math.min(h - 1, bottom + pad);
+    const out = document.createElement('canvas');
+    out.width = right - left + 1; out.height = bottom - top + 1;
+    out.getContext('2d').drawImage(c, left, top, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  }
+
+  function applyRotation() {
+    if (!receiptSrc) { receipt = null; $('receiptPreview').style.display = 'none'; schedulePreview(); return; }
+    const r = ((rotation % 360) + 360) % 360, swap = r === 90 || r === 270;
+    const c = document.createElement('canvas');
+    c.width = swap ? receiptSrc.height : receiptSrc.width;
+    c.height = swap ? receiptSrc.width : receiptSrc.height;
+    const ctx = c.getContext('2d');
+    ctx.translate(c.width / 2, c.height / 2); ctx.rotate(r * Math.PI / 180);
+    ctx.drawImage(receiptSrc, -receiptSrc.width / 2, -receiptSrc.height / 2);
+    receipt = c;
+    $('receiptImg').src = c.toDataURL('image/jpeg', 0.7);
+    $('receiptPreview').style.display = 'block';
+    schedulePreview();
+  }
+  $('btnRotL').onclick = () => { rotation -= 90; applyRotation(); };
+  $('btnRotR').onclick = () => { rotation += 90; applyRotation(); };
+  $('btnRemove').onclick = () => { receiptSrc = null; applyRotation(); };
+
+  // ---------- Signature pad ----------
+  const sig = $('sig'), sctx = sig.getContext('2d');
+  let sigHas = false, drawing = false, last = null;
+  function sizeSig() {
+    const r = sig.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const saved = sigHas ? sig.toDataURL() : null;
+    sig.width = Math.round(r.width * dpr); sig.height = Math.round(r.height * dpr);
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sctx.lineCap = 'round'; sctx.lineJoin = 'round'; sctx.strokeStyle = '#0a2a6b'; sctx.lineWidth = 2.4;
+    const src = saved || store.get('signature', null);
+    if (src) {
+      const im = new Image();
+      im.onload = () => { sctx.drawImage(im, 0, 0, r.width, r.height); sigHas = true; $('sigHint').style.display = 'none'; schedulePreview(); };
+      im.src = src;
+    }
+  }
+  const pos = e => { const r = sig.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  sig.addEventListener('pointerdown', e => {
+    drawing = true; last = pos(e); sig.setPointerCapture(e.pointerId);
+    sctx.beginPath(); sctx.arc(last.x, last.y, 1.1, 0, Math.PI * 2); sctx.fillStyle = sctx.strokeStyle; sctx.fill();
+    sigHas = true; $('sigHint').style.display = 'none'; e.preventDefault();
+  });
+  sig.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const p = pos(e);
+    sctx.beginPath(); sctx.moveTo(last.x, last.y); sctx.lineTo(p.x, p.y); sctx.stroke();
+    last = p; e.preventDefault();
+  });
+  const endDraw = () => {
+    if (!drawing) return; drawing = false;
+    store.set('signature', sig.toDataURL('image/png')); schedulePreview();
+  };
+  sig.addEventListener('pointerup', endDraw); sig.addEventListener('pointercancel', endDraw);
+  $('btnSigClear').onclick = () => {
+    sctx.save(); sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, sig.width, sig.height); sctx.restore();
+    sigHas = false; $('sigHint').style.display = ''; store.set('signature', null); schedulePreview();
+  };
+  window.addEventListener('resize', () => { if (!drawing) sizeSig(); });
+  sizeSig();
+
+  // Signature cropped to its ink bounds.
+  function signatureCanvas() {
+    if (!sigHas) return null;
+    const out = trimWhiteAlpha(sig);
+    return out;
+  }
+  function trimWhiteAlpha(c) {
+    const { width: w, height: h } = c, d = c.getContext('2d').getImageData(0, 0, w, h).data;
+    let top = h, left = w, right = -1, bottom = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 10) {
+        if (y < top) top = y; if (y > bottom) bottom = y; if (x < left) left = x; if (x > right) right = x;
+      }
+    }
+    if (right < 0) return null;
+    const out = document.createElement('canvas');
+    out.width = right - left + 1; out.height = bottom - top + 1;
+    out.getContext('2d').drawImage(c, left, top, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  }
+
+  // ---------- Render A4 page (coordinates in PDF points, 595 x 842) ----------
+  const PW = 595.32, PH = 841.92;
+  function renderPage(scale) {
+    const c = document.createElement('canvas');
+    c.width = Math.round(PW * scale); c.height = Math.round(PH * scale);
+    const g = c.getContext('2d');
+    g.scale(scale, scale);
+    g.fillStyle = '#fff'; g.fillRect(0, 0, PW, PH);
+    g.fillStyle = '#000'; g.strokeStyle = '#000'; g.textBaseline = 'alphabetic';
+    const F = (size, bold) => `${bold ? 'bold ' : ''}${size}px Calibri, Carlito, Arial, "Helvetica Neue", sans-serif`;
+    const m = +$('month').value, y = +$('year').value;
+
+    // Logo
+    if (logo.complete && logo.naturalWidth) g.drawImage(logo, 42, 40, 120, 120 * logo.naturalHeight / logo.naturalWidth);
+
+    // Left column: receipt
+    g.font = F(10, true); g.fillText('ΑΠΟΔΕΙΞΗ', 42, 149);
+    const box = { x: 42, y: 156, w: 206, h: 494 };
+    if (receipt) {
+      const s = Math.min(box.w / receipt.width, box.h / receipt.height);
+      const w = receipt.width * s, h = receipt.height * s;
+      const x = box.x + (box.w - w) / 2, yy = box.y;
+      g.drawImage(receipt, x, yy, w, h);
+      g.lineWidth = 0.6; g.strokeRect(x, yy, w, h);
+    } else {
+      g.save(); g.setLineDash([4, 3]); g.strokeStyle = '#999'; g.lineWidth = 0.8;
+      g.strokeRect(box.x, box.y, box.w, box.h); g.restore();
+      g.fillStyle = '#999'; g.font = F(10); g.textAlign = 'center';
+      g.fillText('(εικόνα απόδειξης)', box.x + box.w / 2, box.y + box.h / 2);
+      g.textAlign = 'left'; g.fillStyle = '#000';
+    }
+
+    // Right column: header
+    const X = 266;
+    g.font = F(10, true); g.fillText('ΕΞΟΔΟΛΟΓΙΟ ΜΗΝΟΣ:', X, 143);
+    const mt = `${MONTHS[m]} ${y}`;
+    g.fillStyle = '#1f4e9c'; g.fillText(mt, 397, 143);
+    const mw = g.measureText(mt).width;
+    g.fillRect(397, 145, mw, 0.7);
+    g.font = F(6.5, true); g.fillText('(1)', 397 + mw + 1, 138);
+    g.fillStyle = '#000';
+    g.font = F(10, true); g.fillText('της', X, 157);
+    g.fillText('παρ.3 αρθ.5', X, 172);
+    let w5 = g.measureText('παρ.3 αρθ.5').width;
+    g.font = F(6.5, true); g.fillText('ο', X + w5, 167);
+    const company = cfg.company.trim();
+    g.font = F(10, true); fitText(g, ' της ΕΣΣΕ' + (company ? ' της ' + company : ''), X + w5 + 4, 172, 581 - (X + w5 + 4));
+
+    // Personal data
+    const fields = [['ΕΠΩΝΥΜΟ:', 'surname'], ['ΟΝΟΜΑ:', 'name'], ['ΟΝΟΜΑ ΠΑΤΕΡΑ:', 'father'], ['ΤΜΗΜΑ:', 'dept'], ['ΔΙΕΥΘΥΝΣΗ:', 'dir']];
+    fields.forEach(([lbl, k], i) => {
+      const yy = 247 + i * 21.7;
+      g.font = F(10, true); g.fillText(lbl, X, yy);
+      const lw = g.measureText(lbl).width;
+      g.font = F(10.5); fitText(g, $(k).value.trim(), X + lw + 6, yy, 581 - (X + lw + 6));
+    });
+
+    // Table
+    const T = { x: 257, y: 408, w: 324, split: 432, r1: 442, r2: 509, r3: 581 };
+    g.lineWidth = 0.6;
+    g.strokeRect(T.x, T.y, T.w, T.r3 - T.y);
+    [T.r1, T.r2].forEach(yy => { g.beginPath(); g.moveTo(T.x, yy); g.lineTo(T.x + T.w, yy); g.stroke(); });
+    g.beginPath(); g.moveTo(T.split, T.y); g.lineTo(T.split, T.r3); g.stroke();
+    g.font = F(10, true); g.textAlign = 'center';
+    g.fillText('ΔΙΑΔΡΟΜΗ', (T.x + T.split) / 2, 429);
+    g.fillText('ΠΟΣΟ ΑΠΟΔΕΙΞΗΣ (€)', (T.split + T.x + T.w) / 2, 429);
+    g.font = F(10.5); g.textAlign = 'left';
+    const lines = wrap(g, $('route').value.trim() || DEFAULT_ROUTE, T.split - T.x - 10).slice(0, 4);
+    const lh = 12.5, ly = (T.r1 + T.r2) / 2 - (lines.length - 1) * lh / 2 + 4;
+    lines.forEach((ln, i) => g.fillText(ln, T.x + 5, ly + i * lh));
+    g.textAlign = 'center';
+    g.fillText(fmtAmount($('amount').value), (T.split + T.x + T.w) / 2, (T.r1 + T.r2) / 2 + 4);
+    g.fillText('(Υπογραφή)', (T.x + T.split) / 2, T.r2 + 16);
+    g.textAlign = 'left';
+    const s = signatureCanvas();
+    if (s) {
+      const bw = T.split - T.x - 16, bh = T.r3 - T.r2 - 28;
+      const k = Math.min(bw / s.width, bh / s.height);
+      const w = s.width * k, h = s.height * k;
+      g.drawImage(s, T.x + 8 + (bw - w) / 2, T.r2 + 22 + (bh - h) / 2, w, h);
+    }
+
+    // Footnote
+    g.font = F(9); g.fillText('(1)  Αναγράφεται ο μήνας για τον οποίο υποβάλουμε το', X, 748);
+    g.fillText('εξοδολόγιο', X, 760);
+    return c;
+  }
+
+  function fitText(g, t, x, y, maxW) {
+    let size = 10.5;
+    while (size > 6 && g.measureText(t).width > maxW) { size -= 0.5; g.font = g.font.replace(/[\d.]+px/, size + 'px'); }
+    g.fillText(t, x, y);
+  }
+  function wrap(g, text, maxW) {
+    const out = []; let line = '';
+    text.split(/\s+/).forEach(w => {
+      const t = line ? line + ' ' + w : w;
+      if (g.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+    });
+    if (line) out.push(line);
+    return out;
+  }
+
+  // ---------- Preview ----------
+  let pTimer = null;
+  function schedulePreview() { clearTimeout(pTimer); pTimer = setTimeout(drawPreview, 150); }
+  function drawPreview() {
+    if (!$('previewBox').open) return;
+    const pc = $('preview'), src = renderPage(1.6);
+    pc.width = src.width; pc.height = src.height;
+    pc.getContext('2d').drawImage(src, 0, 0);
+  }
+  $('previewBox').addEventListener('toggle', drawPreview);
+
+  // ---------- PDF ----------
+  function validate() {
+    const missing = [];
+    if (!receipt) missing.push('απόδειξη');
+    if (!$('amount').value.trim()) missing.push('ποσό');
+    if (!profileComplete()) missing.push('στοιχεία');
+    if (!sigHas) missing.push('υπογραφή');
+    return missing;
+  }
+  function fileName() {
+    const m = +$('month').value, y = +$('year').value;
+    const sn = $('surname').value.trim().replace(/[^\p{L}\p{N}]+/gu, '_');
+    return `Εξοδολόγιο_${MONTHS_LC[m]}_${y}${sn ? '_' + sn : ''}.pdf`;
+  }
+  async function buildPdf() {
+    await (document.fonts ? document.fonts.ready : Promise.resolve());
+    const page = renderPage(200 / 72); // ~200 dpi
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
+    pdf.addImage(page.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, PW, PH);
+    const m = +$('month').value, y = +$('year').value;
+    pdf.setProperties({ title: `Εξοδολόγιο ${MONTHS_LC[m]} ${y}`, subject: SUBJECT() });
+    const blob = pdf.output('blob');
+    return new File([blob], fileName(), { type: 'application/pdf' });
+  }
+  function confirmMissing() {
+    const miss = validate();
+    if (!miss.length) return true;
+    return confirm('Λείπουν: ' + miss.join(', ') + '.\nΣυνέχεια παρόλα αυτά;');
+  }
+  function download(file) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  $('btnDownload').onclick = async () => {
+    if (!confirmMissing()) return;
+    status('Δημιουργία PDF…');
+    try { download(await buildPdf()); status('Το PDF κατέβηκε. Επισυνάψτε το σε email' + (EMAIL() ? ' προς ' + EMAIL() : '') + '.'); }
+    catch (e) { console.error(e); status('Σφάλμα δημιουργίας PDF.'); }
+  };
+
+  $('btnShare').onclick = async () => {
+    if (!confirmMissing()) return;
+    status('Δημιουργία PDF…');
+    let file;
+    try { file = await buildPdf(); } catch (e) { console.error(e); status('Σφάλμα δημιουργίας PDF.'); return; }
+    const m = +$('month').value, y = +$('year').value;
+    const fullName = `${$('surname').value.trim()} ${$('name').value.trim()}`.trim();
+    const body = `Σας αποστέλλω το εξοδολόγιο ${MONTHS_GEN[m]} ${y}.\n\n${fullName}`;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: SUBJECT(), text: body });
+        status(`Θυμηθείτε: Προς ${EMAIL()}, Θέμα «${SUBJECT()}».`);
+        try { await navigator.clipboard.writeText(EMAIL()); } catch {}
+        return;
+      } catch (e) { if (e.name === 'AbortError') { status(''); return; } }
+    }
+    download(file);
+    status('Το PDF κατέβηκε — επισυνάψτε το στο email που ανοίγει.');
+    setTimeout(() => openMail(body), 600);
+  };
+
+  function openMail(body) {
+    location.href = `mailto:${encodeURIComponent(EMAIL())}?subject=${encodeURIComponent(SUBJECT())}` + (body ? `&body=${encodeURIComponent(body)}` : '');
+  }
+  $('btnMail').onclick = () => {
+    const m = +$('month').value, y = +$('year').value;
+    openMail(`Σας αποστέλλω το εξοδολόγιο ${MONTHS_GEN[m]} ${y}.\n\n${$('surname').value.trim()} ${$('name').value.trim()}`);
+  };
+  $('btnCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText(EMAIL()); status('Το email αντιγράφηκε.'); }
+    catch { status(EMAIL()); }
+  };
+
+  setLogo(cfg.logo);
+  updateSettings();
+
+  // ---------- Offline ----------
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // Test hook (used by automated checks only).
+  window.__exodologio = { renderPage, buildPdf };
+})();
+</script>
+</body>
+</html>
