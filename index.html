@@ -80,8 +80,6 @@
 </header>
 
 <main>
-  <div class="warn" id="deadline"></div>
-
   <section class="card">
     <h2><span class="step">1</span> Πρότυπο</h2>
     <div class="btns" style="margin-top:0">
@@ -98,6 +96,7 @@
       <div><label for="month">Μήνας εξόδων</label><select id="month"></select></div>
       <div><label for="year">Έτος</label><select id="year"></select></div>
     </div>
+    <div class="warn" id="deadline" style="margin:10px 0 0"></div>
     <label for="amount">Ποσό απόδειξης (€)</label>
     <input id="amount" inputmode="decimal" placeholder="π.χ. 40,00">
     <label for="route">Διαδρομή</label>
@@ -136,15 +135,17 @@
   </section>
 
   <section class="card">
-    <h2><span class="step">5</span> Υπογραφή</h2>
-    <div class="sig-wrap">
+    <details id="sigBox">
+    <summary><span class="step">5</span> Υπογραφή <span id="sigState" style="font-weight:400;color:var(--muted)"></span></summary>
+    <div class="sig-wrap" style="margin-top:10px">
       <canvas id="sig"></canvas>
       <div class="sig-hint" id="sigHint">Υπογράψτε εδώ με το δάχτυλο</div>
     </div>
     <div class="btns">
       <button id="btnSigClear">Καθαρισμός</button>
     </div>
-    <p class="note">Η υπογραφή αποθηκεύεται για τους επόμενους μήνες.</p>
+    <p class="note">Η υπογραφή αποθηκεύεται για τους επόμενους μήνες. Κλείστε το πλαίσιο για να μην εμποδίζει το σκρολάρισμα.</p>
+    </details>
   </section>
 
   <section class="card">
@@ -450,26 +451,33 @@
   $('btnRemove').onclick = () => { receiptSrc = null; applyRotation(); };
 
   // ---------- Signature pad ----------
+  // The signature is kept as an image (also in storage); the canvas is only used
+  // for drawing while the (collapsible) signature section is open.
   const sig = $('sig'), sctx = sig.getContext('2d');
-  let sigHas = false, drawing = false, last = null;
+  let sigImg = null, drawing = false, last = null;
+  const sigHas = () => !!sigImg;
+  function loadSigImg(src) {
+    sigImg = null;
+    if (src) { const im = new Image(); im.onload = () => { sigImg = im; schedulePreview(); }; im.src = src; }
+    updateSigState(!!src);
+  }
+  function updateSigState(has) {
+    $('sigState').textContent = has ? '✓' : '— υπογράψτε';
+    $('sigHint').style.display = has ? 'none' : '';
+  }
   function sizeSig() {
     const r = sig.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-    const saved = sigHas ? sig.toDataURL() : null;
+    if (!r.width) return; // section closed
     sig.width = Math.round(r.width * dpr); sig.height = Math.round(r.height * dpr);
     sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     sctx.lineCap = 'round'; sctx.lineJoin = 'round'; sctx.strokeStyle = '#0a2a6b'; sctx.lineWidth = 2.4;
-    const src = saved || store.get('signature', null);
-    if (src) {
-      const im = new Image();
-      im.onload = () => { sctx.drawImage(im, 0, 0, r.width, r.height); sigHas = true; $('sigHint').style.display = 'none'; schedulePreview(); };
-      im.src = src;
-    }
+    if (sigImg) sctx.drawImage(sigImg, 0, 0, r.width, r.height);
   }
   const pos = e => { const r = sig.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   sig.addEventListener('pointerdown', e => {
     drawing = true; last = pos(e); sig.setPointerCapture(e.pointerId);
     sctx.beginPath(); sctx.arc(last.x, last.y, 1.1, 0, Math.PI * 2); sctx.fillStyle = sctx.strokeStyle; sctx.fill();
-    sigHas = true; $('sigHint').style.display = 'none'; e.preventDefault();
+    $('sigHint').style.display = 'none'; e.preventDefault();
   });
   sig.addEventListener('pointermove', e => {
     if (!drawing) return;
@@ -479,21 +487,27 @@
   });
   const endDraw = () => {
     if (!drawing) return; drawing = false;
-    store.set('signature', sig.toDataURL('image/png')); schedulePreview();
+    const url = sig.toDataURL('image/png');
+    store.set('signature', url); loadSigImg(url);
   };
   sig.addEventListener('pointerup', endDraw); sig.addEventListener('pointercancel', endDraw);
   $('btnSigClear').onclick = () => {
     sctx.save(); sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, sig.width, sig.height); sctx.restore();
-    sigHas = false; $('sigHint').style.display = ''; store.set('signature', null); schedulePreview();
+    store.set('signature', null); loadSigImg(null); schedulePreview();
   };
+  $('sigBox').addEventListener('toggle', () => { if ($('sigBox').open) sizeSig(); });
   window.addEventListener('resize', () => { if (!drawing) sizeSig(); });
+  loadSigImg(store.get('signature', null));
+  if (!store.get('signature', null)) $('sigBox').open = true;
   sizeSig();
 
   // Signature cropped to its ink bounds.
   function signatureCanvas() {
-    if (!sigHas) return null;
-    const out = trimWhiteAlpha(sig);
-    return out;
+    if (!sigImg) return null;
+    const c = document.createElement('canvas');
+    c.width = sigImg.naturalWidth; c.height = sigImg.naturalHeight;
+    c.getContext('2d').drawImage(sigImg, 0, 0);
+    return trimWhiteAlpha(c);
   }
   function trimWhiteAlpha(c) {
     const { width: w, height: h } = c, d = c.getContext('2d').getImageData(0, 0, w, h).data;
@@ -666,7 +680,7 @@
     if (!receipt) missing.push('απόδειξη');
     if (!$('amount').value.trim()) missing.push('ποσό');
     if (!profileComplete()) missing.push('στοιχεία');
-    if (!sigHas) missing.push('υπογραφή');
+    if (!sigHas()) missing.push('υπογραφή');
     return missing;
   }
   // Latin file name (some browsers and mail apps mangle Greek file names).
