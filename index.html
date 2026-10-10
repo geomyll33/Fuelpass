@@ -739,7 +739,7 @@
   };
 
   function openMail(body) {
-    location.href = `mailto:${encodeURIComponent(EMAIL())}?subject=${encodeURIComponent(SUBJECT())}` + (body ? `&body=${encodeURIComponent(body)}` : '');
+    location.href = `mailto:${EMAIL().replace(/[\s,;?&]/g, '')}?subject=${encodeURIComponent(SUBJECT())}` + (body ? `&body=${encodeURIComponent(body)}` : '');
   }
   setTemplate(cfg.template);
   updateSettings();
