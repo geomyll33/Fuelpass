@@ -87,7 +87,7 @@
 <body>
 <header>
   <h1>Fuelpass</h1>
-  <p>Κάρτα καυσίμων / ΜΜΜ</p>
+  <p>Κάρτα καυσίμων / ΜΜΜ <span id="appVersion" style="opacity:.7"></span></p>
 </header>
 
 <main>
@@ -192,6 +192,11 @@
   </div>
   <p class="note" style="margin:6px 12px 0">Σύρετε κάθε πλαίσιο στη θέση του. Η πορτοκαλί τελεία αλλάζει το μέγεθος. Ό,τι υπάρχει μέσα στο πλαίσιο στο πρότυπο καλύπτεται.</p>
   <div id="edScroll"><div id="edPage"><canvas id="edCanvas"></canvas></div></div>
+</div>
+
+<div id="updateBar" class="hidden" style="position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:30;background:#1b2430;color:#fff;border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.3)">
+  <span style="flex:1">Νέα έκδοση διαθέσιμη</span>
+  <button id="btnUpdate" class="ok">Ανανέωση</button>
 </div>
 
 <div id="cropper" class="hidden">
@@ -924,8 +929,24 @@
   };
 
   // ---------- Offline ----------
+  // Bump on every release: shown in the header and used to detect updates.
+  const APP_VERSION = '2026.10.10-2';
+  $('appVersion').textContent = '· v' + APP_VERSION;
+  // An installed app is often resumed rather than reloaded, so when it comes back to the
+  // foreground check whether a newer version is published and offer to reload.
+  // (No automatic reload: it would lose a receipt photo that was just taken.)
+  async function checkForUpdate() {
+    try {
+      const r = await fetch('index.html?check=' + Date.now(), { cache: 'no-store' });
+      const m = (await r.text()).match(/const APP_VERSION = '([^']+)'/);
+      if (m && m[1] !== APP_VERSION) $('updateBar').classList.remove('hidden');
+    } catch {}
+  }
+  $('btnUpdate').onclick = () => location.reload();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
+  if (location.protocol.startsWith('http')) checkForUpdate();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(() => {});
   }
 
   // Test hook (used by automated checks only).

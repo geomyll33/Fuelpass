@@ -1,4 +1,4 @@
-const CACHE = 'fuelpass-v1';
+const CACHE = 'fuelpass-v2';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
@@ -6,7 +6,7 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -19,8 +19,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (e.request.mode === 'navigate') {
-    // If the site is offline or no longer published (404), keep using the cached copy.
-    e.respondWith(fetch(e.request)
+    // Always revalidate the page with the server (skip the browser's HTTP cache) so
+    // updates show up on the next open. Offline or 404: keep using the cached copy.
+    e.respondWith(fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' })
       .then(r => {
         if (!r.ok) return caches.match('index.html').then(c => c || r);
         const copy = r.clone(); caches.open(CACHE).then(c => c.put('index.html', copy)); return r;
