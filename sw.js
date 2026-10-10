@@ -1,4 +1,4 @@
-const CACHE = 'fuelpass-v3';
+const CACHE = 'fuelpass-v4';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'guide.html', 'Fuelpass-Odigos.pdf',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',

@@ -180,8 +180,7 @@
       <summary>⚙ Αποστολή email <span id="settingsState" style="font-weight:400;color:var(--muted)"></span></summary>
       <label for="cfgEmail">Email παραλήπτη</label><input id="cfgEmail" type="email" inputmode="email" autocomplete="off">
       <label for="cfgSubject">Θέμα email</label><input id="cfgSubject">
-      <div class="btns"><button id="btnSetupLink">🔗 Αντιγραφή συνδέσμου ρυθμίσεων</button></div>
-      <p class="note">Αποθηκεύονται μόνο σε αυτή τη συσκευή. Ο σύνδεσμος ρυθμίσεων συμπληρώνει αυτόματα email, θέμα και θέσεις πεδίων σε όποιον τον ανοίξει (όχι το πρότυπο).</p>
+      <p class="note">Αποθηκεύονται μόνο σε αυτή τη συσκευή. Με την «Αποστολή» το email παραλήπτη αντιγράφεται, για επικόλληση στο πεδίο «Προς».</p>
     </details>
   </section>
 
@@ -251,20 +250,9 @@
   const status = msg => { $('status').textContent = msg || ''; };
 
   // ---------- Settings (recipient, subject, template, field boxes) ----------
-  // A "#setup=" link can prefill email, subject and field boxes.
   const DEFAULTS = { email: '', subject: '', template: '', boxes: null };
   const cfg = {};
   Object.keys(DEFAULTS).forEach(k => { cfg[k] = store.get('cfg.' + k, DEFAULTS[k]); });
-  try {
-    const m = location.hash.match(/^#setup=(.+)$/);
-    if (m) {
-      const json = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
-      const set = JSON.parse(json);
-      ['email', 'subject'].forEach(k => { if (typeof set[k] === 'string') { cfg[k] = set[k]; store.set('cfg.' + k, set[k]); } });
-      if (set.boxes && typeof set.boxes === 'object') { cfg.boxes = set.boxes; store.set('cfg.boxes', set.boxes); }
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-  } catch {}
   const EMAIL = () => cfg.email.trim();
   const SUBJECT = () => cfg.subject.trim();
 
@@ -309,14 +297,6 @@
     $(id).addEventListener('input', () => { cfg[k] = $(id).value; store.set('cfg.' + k, cfg[k]); updateSettings(); schedulePreview(); });
   });
   if (!EMAIL()) $('settingsBox').open = true;
-  $('btnSetupLink').onclick = async () => {
-    const json = JSON.stringify({ email: cfg.email.trim(), subject: cfg.subject.trim(), boxes: cfg.boxes || undefined });
-    const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const url = location.href.split('#')[0] + '#setup=' + b64;
-    try { await navigator.clipboard.writeText(url); status('Ο σύνδεσμος ρυθμίσεων αντιγράφηκε.'); }
-    catch { prompt('Αντιγράψτε τον σύνδεσμο:', url); }
-  };
-
   // ---------- Month / year ----------
   const now = new Date();
   // Default: previous month (the one being submitted during days 1–10).
@@ -837,12 +817,28 @@
     catch (e) { console.error(e); status('Σφάλμα δημιουργίας PDF.'); }
   };
 
+  // Copy text right away, while the tap still counts as a user gesture: after the PDF
+  // is built (or a dialog is answered) phones often refuse clipboard access.
+  function copyNow(text) {
+    let ok = false;
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      ok = document.execCommand('copy'); ta.remove();
+    } catch {}
+    const api = navigator.clipboard && navigator.clipboard.writeText
+      ? navigator.clipboard.writeText(text).then(() => true, () => false) : Promise.resolve(false);
+    return api.then(r => r || ok);
+  }
+
   $('btnShare').onclick = async () => {
     if (!EMAIL()) {
       alert('Συμπληρώστε το email παραλήπτη στο «⚙ Αποστολή email».');
       $('settingsBox').open = true; $('cfgEmail').scrollIntoView({ block: 'center' }); $('cfgEmail').focus();
       return;
     }
+    const copied = copyNow(EMAIL());
     if (!confirmMissing()) return;
     status('Δημιουργία PDF…');
     let file;
@@ -852,9 +848,10 @@
     const body = `Σας αποστέλλω συνημμένα ${SUBJECT() || 'το αρχείο'} ${MONTHS_GEN[m]} ${y}.\n\n${fullName}`;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        try { await navigator.clipboard.writeText(EMAIL()); } catch {}
         await navigator.share({ files: [file], title: SUBJECT(), text: body });
-        status(`Στο email: Προς ${EMAIL()} (έχει αντιγραφεί)${SUBJECT() ? `, Θέμα «${SUBJECT()}»` : ''}.`);
+        status((await copied)
+          ? `Στο «Προς» κάντε Επικόλληση: ${EMAIL()} (έχει αντιγραφεί).`
+          : `Στο «Προς» γράψτε: ${EMAIL()}`);
         return;
       } catch (e) { if (e.name === 'AbortError') { status(''); return; } }
     }
@@ -945,7 +942,7 @@
 
   // ---------- Offline ----------
   // Bump on every release: shown in the header and used to detect updates.
-  const APP_VERSION = '2026.10.10-3';
+  const APP_VERSION = '2026.10.10-4';
   $('appVersion').textContent = '· v' + APP_VERSION;
   // An installed app is often resumed rather than reloaded, so when it comes back to the
   // foreground check whether a newer version is published and offer to reload.
